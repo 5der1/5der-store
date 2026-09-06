@@ -31,7 +31,7 @@ h1{font-family:Montserrat,sans-serif;font-size:clamp(48px,7vw,86px);line-height:
 .card{background:linear-gradient(180deg,#141414,#0e0e0e);border:1px solid var(--line);border-radius:9px;overflow:hidden;transition:.25s}
 .card:hover{transform:translateY(-5px);border-color:#555}
 .pic{height:330px;overflow:hidden;background:#171717}.pic img{width:100%;height:100%;object-fit:cover;display:block;transition:.4s}.card:hover .pic img{transform:scale(1.04)}
-.info{padding:15px}.tag{color:var(--gold);font-size:10px;letter-spacing:2px}.name{font-weight:700;margin:6px 0}.price{font-family:Montserrat;font-size:18px;font-weight:800;margin:8px 0 14px}
+.info{padding:15px}.tag{color:var(--gold);font-size:10px;letter-spacing:2px}.name{font-weight:700;margin:6px 0}.price{font-family:Montserrat;font-size:18px;font-weight:800;margin:8px 0 14px}.priceRow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:8px 0 14px}.priceCurrent{font-family:Montserrat;font-size:18px;font-weight:800;color:var(--gold)}.priceOld{font-family:Montserrat;font-size:13px;color:#777;text-decoration:line-through}.discountBadge{background:var(--gold);color:#111;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:900}
 .buy{width:100%;padding:10px;border:1px solid var(--gold);background:transparent;color:#fff;border-radius:4px;cursor:pointer}.buy:hover{background:var(--gold);color:#111}
 .benefits{border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);max-width:1250px;margin:auto}
 .b{padding:26px;text-align:center;border-left:1px solid var(--line)}.b:last-child{border:0}.b strong{display:block;color:var(--gold);font-size:17px;margin-bottom:4px}.b span{font-size:12px;color:#aaa}
@@ -40,7 +40,7 @@ h1{font-family:Montserrat,sans-serif;font-size:clamp(48px,7vw,86px);line-height:
 footer{border-top:1px solid var(--line);padding:30px 22px;color:#888}.foot{max-width:1250px;margin:auto;display:flex;justify-content:space-between}
 .toast{position:fixed;bottom:25px;left:25px;background:var(--gold);color:#111;padding:12px 18px;border-radius:5px;font-weight:800;display:none;z-index:50}
 @media(max-width:950px){.grid{grid-template-columns:repeat(2,1fr)}.benefits{grid-template-columns:repeat(2,1fr)}.b{border-bottom:1px solid var(--line)}.links{display:none}.feature{grid-template-columns:1fr}}
-@media(max-width:560px){.top{font-size:9px}.logo{font-size:29px}.nav{padding:12px 15px}.hero{min-height:540px}.heroText{padding:50px 18px}h1{font-size:48px}.heroText p{font-size:15px}.section{padding:50px 15px}.grid{grid-template-columns:1fr 1fr;gap:8px}.pic{height:245px}.info{padding:10px}.name{font-size:13px}.price{font-size:15px}.benefits{margin:0 15px}.b{padding:20px 10px}.form{display:block}.form input,.form button{width:100%;border-radius:4px;margin:3px 0;padding:12px}.foot{display:block;text-align:center}}
+@media(max-width:560px){.top{font-size:9px}.logo{font-size:29px}.nav{padding:12px 15px}.hero{min-height:540px}.heroText{padding:50px 18px}h1{font-size:48px}.heroText p{font-size:15px}.section{padding:50px 15px}.grid{grid-template-columns:1fr 1fr;gap:8px}.pic{height:245px}.info{padding:10px}.name{font-size:13px}.priceCurrent{font-size:15px}.priceOld{font-size:11px}.discountBadge{font-size:9px}.benefits{margin:0 15px}.b{padding:20px 10px}.form{display:block}.form input,.form button{width:100%;border-radius:4px;margin:3px 0;padding:12px}.foot{display:block;text-align:center}}
 
 .adminBtn{background:transparent;color:var(--gold);border:1px solid var(--gold);border-radius:4px;padding:7px 11px;font-size:11px;font-weight:800;cursor:pointer}
 .adminBtn:hover{background:var(--gold);color:#111}
@@ -574,6 +574,19 @@ function readEmbeddedProducts(){
   }).filter(Boolean);
 }
 function getProducts(){return productCatalog.length?productCatalog:readEmbeddedProducts();}
+function priceNumber(v){
+  const n=parseFloat(String(v??'').replace(/[^0-9.]/g,''));
+  return Number.isFinite(n)?n:0;
+}
+function renderPriceHtml(p){
+  const current=priceNumber(p.price);
+  const old=priceNumber(p.compare_at_price);
+  const hasDiscount=old>current && current>0;
+  if(!hasDiscount) return '<div class="price">'+escapeHtml(p.price||'')+'</div>';
+  const discount=Math.round(((old-current)/old)*100);
+  return '<div class="priceRow"><span class="priceCurrent">'+escapeHtml(p.price||'')+'</span><span class="priceOld">'+escapeHtml(p.compare_at_price||'')+'</span><span class="discountBadge">خصم '+discount+'%</span></div>';
+}
+
 async function loadProductsFromSupabase(){
   const fallback=readEmbeddedProducts();
   if(!supabaseClient){productCatalog=fallback;renderStore();return;}
@@ -591,7 +604,7 @@ async function loadProductsFromSupabase(){
     const byId={}; imageRows.forEach(i=>(byId[i.product_id]??=[]).push(i.image_url));
     productCatalog=rows.map(p=>{
       const images=[...new Set([p.cover_image_url,...(byId[p.id]||[])].filter(Boolean))];
-      return {...p,price:String(p.price??''),tag:p.featured?'FEATURED':'5DER',image:images[0]||'',images,colors:Array.isArray(p.metadata?.colors)?p.metadata.colors:[]};
+      return {...p,price:String(p.price??''),compare_at_price:String(p.compare_at_price??''),tag:p.featured?'FEATURED':'5DER',image:images[0]||'',images,colors:Array.isArray(p.metadata?.colors)?p.metadata.colors:[]};
     });
     productCatalogLoaded=true;
     renderStore();
@@ -977,7 +990,7 @@ function renderStore(){
     article.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&!e.target.closest('button')){e.preventDefault();openProductDetails(p.id)}});
     article.innerHTML='<div class="pic"><img src="'+escapeAttr(p.image)+'" alt="'+escapeAttr(p.name)+'"></div>'+
       '<div class="info"><div class="tag">'+escapeHtml(p.tag)+'</div><div class="name">'+escapeHtml(p.name)+'</div>'+
-      '<div class="price">'+escapeHtml(p.price)+'</div><div style="display:flex;gap:7px;flex-wrap:wrap"><button class="buy" data-cart-id="'+escapeAttr(p.id)+'"><i data-lucide="shopping-cart"></i>أضف للسلة</button><button class="buy" data-buy-id="'+escapeAttr(p.id)+'"><i data-lucide="shopping-bag"></i>اضغط للشراء</button></div></div>';
+      renderPriceHtml(p)+'<div style="display:flex;gap:7px;flex-wrap:wrap"><button class="buy" data-cart-id="'+escapeAttr(p.id)+'"><i data-lucide="shopping-cart"></i>أضف للسلة</button><button class="buy" data-buy-id="'+escapeAttr(p.id)+'"><i data-lucide="shopping-bag"></i>اضغط للشراء</button></div></div>';
     grid.appendChild(article);
   });
 }
@@ -1031,14 +1044,23 @@ document.getElementById('count').textContent=String(cartItems.length);
   function renderRecommendations(currentId){
     const box=document.getElementById('detailRecommendations'); if(!box)return;
     const list=products().filter(x=>String(x.id)!==String(currentId)).slice(0,4);
-    box.innerHTML=list.map(x=>`<div class="recommendCard" onclick="openProductDetails('${String(x.id).replace(/'/g,"\\'")}')"><img src="${escapeAttr(x.image||'')}" alt="${escapeAttr(x.name)}"><strong>${escapeHtml(x.name)}</strong><span>${escapeHtml(x.price)}</span></div>`).join('');
+    box.innerHTML=list.map(x=>`<div class="recommendCard" onclick="openProductDetails('${String(x.id).replace(/'/g,"\\'")}')"><img src="${escapeAttr(x.image||'')}" alt="${escapeAttr(x.name)}"><strong>${escapeHtml(x.name)}</strong><span>${priceNumber(x.compare_at_price)>priceNumber(x.price)?escapeHtml(x.price)+' <s>'+escapeHtml(x.compare_at_price)+'</s>':' '+escapeHtml(x.price)}</span></div>`).join('');
   }
   function openDetails(id){
     const p=product(id); if(!p)return;
     detailProductId=p.id;
     document.getElementById('detailTag').textContent=p.tag||'5DER';
     document.getElementById('detailTitle').textContent=p.name;
-    document.getElementById('detailPrice').textContent='سعر القطعة: '+p.price;
+    const detailPriceEl=document.getElementById('detailPrice');
+    if(detailPriceEl){
+      const current=priceNumber(p.price), old=priceNumber(p.compare_at_price);
+      if(old>current && current>0){
+        const discount=Math.round(((old-current)/old)*100);
+        detailPriceEl.innerHTML='<span class="priceCurrent">'+escapeHtml(p.price)+'</span> <span class="priceOld">'+escapeHtml(p.compare_at_price)+'</span> <span class="discountBadge">خصم '+discount+'%</span>';
+      }else{
+        detailPriceEl.textContent='سعر القطعة: '+p.price;
+      }
+    }
     document.getElementById('detailDescription').textContent=p.description||descriptions[p.name]||'اختيار مميز من مجموعة 5DER. تصميم أنيق يناسب اللوك اليومي والمناسبات.';
     document.getElementById('detailQtyInput').value=1;
     updateDetailTotal();
